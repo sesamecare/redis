@@ -10,7 +10,7 @@ export function usePeriodicTask(options: {
   key: string;
   intervalSeconds: number;
   task: () => Promise<void>;
-  onError?: (error: Error) => void;
+  onError?: (type: 'lookup' | 'lock' | 'task', error: Error) => void;
   onSuccess?: () => void;
   timeoutSeconds?: number;
 }) {
@@ -22,22 +22,33 @@ export function usePeriodicTask(options: {
   });
 
   const timer = setInterval(() => {
-    lock
-      .using(async () => {
-        try {
-          const lastRun = await options.redis.get(`${options.key}:last`);
-          if (lastRun && Date.now() - Number(lastRun) < options.intervalSeconds * 1000) {
-            return;
-          }
-          await options.task();
-          options.onSuccess?.();
-          await options.redis.set(`${options.key}:last`, Date.now().toString());
-        } catch (error) {
-          options.onError?.(error as Error);
+    options.redis
+      .get(`${options.key}:last`)
+      .then((lastRun) => {
+        if (lastRun && Date.now() - Number(lastRun) < options.intervalSeconds * 1000) {
+          return;
+        } else {
+          lock
+            .using(async () => {
+              try {
+                const lastRun = await options.redis.get(`${options.key}:last`);
+                if (lastRun && Date.now() - Number(lastRun) < options.intervalSeconds * 1000) {
+                  return;
+                }
+                await options.task();
+                options.onSuccess?.();
+                await options.redis.set(`${options.key}:last`, Date.now().toString());
+              } catch (error) {
+                options.onError?.('task', error as Error);
+              }
+            })
+            .catch((error) => {
+              options.onError?.('lock', error as Error);
+            });
         }
       })
       .catch((error) => {
-        options.onError?.(error as Error);
+        options.onError?.('lookup', error as Error);
       });
   }, options.intervalSeconds * 1000);
 

@@ -11,7 +11,7 @@ describe('usePeriodicTask', () => {
   let redis: RedisClientType;
   let taskMock: MockedFunction<() => Promise<void>>;
   let onSuccessMock: MockedFunction<() => void>;
-  let onErrorMock: MockedFunction<(error: Error) => void>;
+  let onErrorMock: MockedFunction<(type: 'lookup' | 'lock' | 'task', error: Error) => void>;
 
   beforeAll(async () => {
     redis = createClient({ url: TEST_REDIS_URL });
@@ -33,7 +33,7 @@ describe('usePeriodicTask', () => {
     taskMock = vi.fn<() => Promise<void>>();
     taskMock.mockImplementation(async () => {});
     onSuccessMock = vi.fn<() => void>();
-    onErrorMock = vi.fn<(error: Error) => void>();
+    onErrorMock = vi.fn<(type: 'lookup' | 'lock' | 'task', error: Error) => void>();
     await expect(redis.flushDb()).resolves.toBe('OK');
     await expect(redis.dbSize()).resolves.toBe(0);
   });
@@ -120,7 +120,7 @@ describe('usePeriodicTask', () => {
 
     await sleep(1500);
     await vi.waitFor(() => {
-      expect(onErrorMock).toHaveBeenCalledWith(error);
+      expect(onErrorMock).toHaveBeenCalledWith('task', error);
     });
     expect(await redis.get('baz:last')).toBeNull();
 
