@@ -2,6 +2,7 @@
   "name": "@sesamecare-oss/redis",
   "version": "0.0.0",
   "description": "",
+  "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "author": "Developers <developers@sesamecare.com>",
