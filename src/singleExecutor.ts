@@ -1,7 +1,7 @@
 import { createLock, NodeRedisAdapter } from 'redlock-universal';
 import type { RedisClientType } from 'redis';
 
-interface CachedResult<T extends object> {
+export interface CachedResult<T extends object> {
   data: T;
   time: number;
 }
