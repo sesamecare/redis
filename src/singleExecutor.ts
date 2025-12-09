@@ -57,7 +57,7 @@ export function useSingleExecutorFactory<T extends object>(options: {
         data: result,
         time: Date.now(),
       };
-      await options.redis.set(key, JSON.stringify(cacheResult));
+      await options.redis.set(key, JSON.stringify(cacheResult), { expiration: { type: 'EX', value: callOptions?.ttl ?? options.ttl ?? 30000 } });
       return cacheResult;
     });
   }
