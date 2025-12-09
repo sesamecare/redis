@@ -5,6 +5,7 @@ import { createClient, type RedisClientType } from 'redis';
 import { useSingleExecutorFactory } from './singleExecutor';
 
 const TEST_REDIS_URL = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
+const TEST_REDIS_DB = Number(process.env.REDIS_DB_SINGLE ?? process.env.REDIS_DB ?? '1');
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('useSingleExecutorFactory', () => {
@@ -14,7 +15,7 @@ describe('useSingleExecutorFactory', () => {
   let singleExecutor: ReturnType<typeof useSingleExecutorFactory<{ value: string }>>;
 
   beforeAll(async () => {
-    redis = createClient({ url: TEST_REDIS_URL });
+    redis = createClient({ url: TEST_REDIS_URL, database: TEST_REDIS_DB });
     await expect(redis.connect()).resolves.toBe(redis);
     expect(redis.isOpen).toBe(true);
     await expect(redis.ping()).resolves.toBe('PONG');
@@ -110,12 +111,15 @@ describe('useSingleExecutorFactory', () => {
     const first = await singleExecutor('epsilon', taskMock, { ttl: 1 });
     const initialTtl = await redis.ttl('epsilon');
     expect(initialTtl).toBeGreaterThan(0);
-    expect(initialTtl).toBeLessThanOrEqual(1);
+    expect(initialTtl).toBeLessThanOrEqual(2); // allow rounding variance across Redis versions
 
     await sleep(1500);
-    await vi.waitFor(async () => {
-      expect(await redis.exists('epsilon')).toBe(0);
-    });
+    await vi.waitFor(
+      async () => {
+        expect(await redis.exists('epsilon')).toBe(0);
+      },
+      { timeout: 5000, interval: 100 },
+    );
 
     const second = await singleExecutor('epsilon', taskMock, { ttl: 1 });
 

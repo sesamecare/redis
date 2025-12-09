@@ -5,6 +5,7 @@ import { createClient, type RedisClientType } from 'redis';
 import { usePeriodicTask } from './periodicTask';
 
 const TEST_REDIS_URL = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
+const TEST_REDIS_DB = Number(process.env.REDIS_DB_PERIODIC ?? process.env.REDIS_DB ?? '2');
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('usePeriodicTask', () => {
@@ -14,7 +15,7 @@ describe('usePeriodicTask', () => {
   let onErrorMock: MockedFunction<(type: 'lookup' | 'lock' | 'task', error: Error) => void>;
 
   beforeAll(async () => {
-    redis = createClient({ url: TEST_REDIS_URL });
+    redis = createClient({ url: TEST_REDIS_URL, database: TEST_REDIS_DB });
     await expect(redis.connect()).resolves.toBe(redis);
     expect(redis.isOpen).toBe(true);
     await expect(redis.ping()).resolves.toBe('PONG');
