@@ -60,7 +60,7 @@ describe('useSingleExecutorFactory', () => {
     const cached = await redis.get('alpha');
     expect(cached).not.toBeNull();
     expect(cached && JSON.parse(cached)).toEqual(result);
-    expect(await redis.ttl('alpha')).toBe(-1);
+    expect(await redis.ttl('alpha')).toBeGreaterThan(0);
   });
 
   it('returns cached data without re-running the task', async () => {
@@ -101,5 +101,27 @@ describe('useSingleExecutorFactory', () => {
 
     const parsed = await redis.get('delta').then((value) => (value ? JSON.parse(value) : null));
     expect(parsed).toEqual(result);
+  });
+
+  it('expires the cached value after ttl and re-executes the task', async () => {
+    let counter = 0;
+    taskMock.mockImplementation(async () => ({ value: `run-${++counter}` }));
+
+    const first = await singleExecutor('epsilon', taskMock, { ttl: 1 });
+    const initialTtl = await redis.ttl('epsilon');
+    expect(initialTtl).toBeGreaterThan(0);
+    expect(initialTtl).toBeLessThanOrEqual(1);
+
+    await sleep(1500);
+    await vi.waitFor(async () => {
+      expect(await redis.exists('epsilon')).toBe(0);
+    });
+
+    const second = await singleExecutor('epsilon', taskMock, { ttl: 1 });
+
+    expect(taskMock).toHaveBeenCalledTimes(2);
+    expect(first.data.value).toBe('run-1');
+    expect(second.data.value).toBe('run-2');
+    expect(await redis.ttl('epsilon')).toBeGreaterThan(0);
   });
 });
